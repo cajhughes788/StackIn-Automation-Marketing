@@ -125,25 +125,64 @@ def build_cloudinary_url(heading, subheading):
     return url
 
 
-def schedule_buffer_post(channel_id, text, scheduled_at, image_url=None):
-    token = os.environ["BUFFER_ACCESS_TOKEN"]
-    data = {
-        "access_token": token,
-        "profile_ids[]": channel_id,
-        "text": text,
-        "scheduled_at": scheduled_at,
+GRAPHQL_MUTATION = """
+mutation CreatePost($input: CreatePostInput!) {
+  createPost(input: $input) {
+    ... on PostActionSuccess {
+      post { id status }
     }
+    ... on NotFoundError { message }
+    ... on UnauthorizedError { message }
+    ... on UnexpectedError { message }
+    ... on RestProxyError { message }
+    ... on LimitReachedError { message }
+    ... on InvalidInputError { message }
+  }
+}
+"""
+
+
+def schedule_buffer_post(channel_id, text, scheduled_at, image_url=None, is_instagram=False):
+    token = os.environ["BUFFER_ACCESS_TOKEN"]
+
+    assets = []
     if image_url:
-        data["media[photo]"] = image_url
+        assets = [{"image": {"url": image_url}}]
+
+    variables = {
+        "input": {
+            "channelId": channel_id,
+            "text": text,
+            "schedulingType": "automatic",
+            "mode": "customScheduled",
+            "dueAt": scheduled_at,
+            "assets": assets,
+        }
+    }
+
+    if is_instagram:
+        variables["input"]["metadata"] = {
+            "instagram": {"type": "post", "shouldShareToFeed": True}
+        }
+    else:
+        variables["input"]["metadata"] = {
+            "facebook": {"type": "post"}
+        }
 
     response = requests.post(
-        "https://api.bufferapp.com/1/updates/create.json",
-        data=data
+        "https://api.bufferapp.com/graphql",
+        json={"query": GRAPHQL_MUTATION, "variables": variables},
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     )
     result = response.json()
     if not response.ok:
         raise Exception(f"Buffer API error: {result}")
-    return result
+    if "errors" in result:
+        raise Exception(f"Buffer GraphQL error: {result['errors']}")
+    payload = result.get("data", {}).get("createPost", {})
+    if "message" in payload:
+        raise Exception(f"Buffer post error: {payload['message']}")
+    return payload
 
 
 def main():
@@ -161,19 +200,19 @@ def main():
     image_url = build_cloudinary_url(heading, subheading)
     print(f"Image URL: {image_url}")
 
-    # Schedule for noon tomorrow UTC
+    # Schedule for noon tomorrow EST (17:00 UTC)
     tomorrow_noon = (datetime.now(timezone.utc) + timedelta(days=1)).replace(
         hour=17, minute=0, second=0, microsecond=0
     )
-    scheduled_at = tomorrow_noon.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    scheduled_at = tomorrow_noon.strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"Scheduling for: {scheduled_at}")
 
     print("Scheduling Instagram post...")
-    ig_result = schedule_buffer_post(INSTAGRAM_CHANNEL_ID, instagram_caption, scheduled_at, image_url)
+    ig_result = schedule_buffer_post(INSTAGRAM_CHANNEL_ID, instagram_caption, scheduled_at, image_url, is_instagram=True)
     print(f"Instagram scheduled: {ig_result}")
 
     print("Scheduling Facebook post...")
-    fb_result = schedule_buffer_post(FACEBOOK_CHANNEL_ID, facebook_post, scheduled_at)
+    fb_result = schedule_buffer_post(FACEBOOK_CHANNEL_ID, facebook_post, scheduled_at, is_instagram=False)
     print(f"Facebook scheduled: {fb_result}")
 
     print("\nDone! Both posts scheduled successfully.")
