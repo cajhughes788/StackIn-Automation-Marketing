@@ -188,12 +188,17 @@ def call_buffer_mcp(tool_name, arguments):
 
 
 def schedule_buffer_post(channel_id, text, scheduled_at, image_url=None, is_instagram=False):
-    scheduling_type = "notification" if is_instagram else "automatic"
+    if is_instagram:
+        scheduling_type = "notification"
+        mode = "addToQueue"
+    else:
+        scheduling_type = "automatic"
+        mode = "shareNow"
     args = {
         "channelId": channel_id,
         "text": text,
         "schedulingType": scheduling_type,
-        "mode": "shareNow",
+        "mode": mode,
     }
     if image_url:
         args["assets"] = [{"image": {"url": image_url}}]
