@@ -185,7 +185,7 @@ def schedule_buffer_post(channel_id, text, scheduled_at, image_url=None, is_inst
     args = {
         "channelId": channel_id,
         "text": text,
-        "scheduledAt": scheduled_at,
+        "dueAt": scheduled_at,
         "schedulingType": "automatic",
         "mode": "customScheduled",
     }
