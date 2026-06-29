@@ -87,14 +87,20 @@ Audience rotation by day:
 - Saturday: servers/bartenders
 - Sunday: tattoo artists
 
+STRICT RULES — never break these:
+- Never use the green check mark emoji (✅) anywhere in any post
+- Never use an em dash (—) anywhere in any post; use a comma or period instead
+- The instagram_caption must end with this exact line on its own line: "Create an account online here: https://stackin-app.com, or download on iOS here: https://apps.apple.com/us/app/stack-in/id6764385326"
+- Place that CTA line BEFORE the hashtags block
+
 Choose a content theme relevant to today's date and generate the following as valid JSON only — no markdown, no explanation, just the JSON object:
 
 {{
   "heading": "6-10 punchy words in ALL CAPS, scroll-stopping hook",
   "subheading": "2-3 sentences speaking directly to today's audience, conversational, sentence case",
-  "instagram_caption": "3-5 sentences, casual and relatable, ends with call to action to download StackIn",
+  "instagram_caption": "3-5 sentences, casual and relatable. End with this exact line: Create an account online here: https://stackin-app.com, or download on iOS here: https://apps.apple.com/us/app/stack-in/id6764385326",
   "hashtags": "#StackIn #ServerLife #TipMoney #RestaurantWorkers #FOH #CashTips #HospitalityLife #TattooArtist #HairStylist #Cosmetologist #Freelance #IndependentContractor #KnowYourWorth #CashFlow #SmallBusiness",
-  "facebook_post": "3-5 sentences, conversational, strong opening hook, ends with call to action to download StackIn, no hashtags"
+  "facebook_post": "3-5 sentences, conversational, strong opening hook. End with: Create an account online here: https://stackin-app.com, or download on iOS here: https://apps.apple.com/us/app/stack-in/id6764385326 — no hashtags"
 }}
 """
 
