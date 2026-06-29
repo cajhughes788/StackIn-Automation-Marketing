@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+print("=== VERSION: MCP BUILD 2c74615 ===")
 import os
 import json
 import urllib.parse
