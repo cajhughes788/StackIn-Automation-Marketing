@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 INSTAGRAM_CHANNEL_ID = "6a41579a5ab6d2f10680aa6f"
 FACEBOOK_CHANNEL_ID = "6a415d125ab6d2f10680bde1"
 CLOUDINARY_CLOUD = "dkqlevbi"
+MCP_URL = "https://mcp.buffer.com/mcp"
 
 PROMPT = """You are the marketing agent for StackIn, an income and expense tracking app built for two specific groups of people who are chronically underserved by existing financial tools.
 
@@ -116,16 +117,12 @@ def generate_content():
 def build_cloudinary_url(heading, subheading):
     heading_encoded = urllib.parse.quote(heading, safe='')
     subheading_encoded = urllib.parse.quote(subheading, safe='')
-    url = (
+    return (
         f"http://res.cloudinary.com/{CLOUDINARY_CLOUD}/image/upload/"
         f"c_fit,co_rgb:ffffff,g_north,l_text:Arial_58_bold:{heading_encoded},w_980,y_280/"
         f"c_fit,co_rgb:c8e6c9,g_north,l_text:Arial_44:{subheading_encoded},w_920,y_460/"
         f"stackin_template_blank.png"
     )
-    return url
-
-
-MCP_URL = "https://mcp.buffer.com/mcp"
 
 
 def call_buffer_mcp(tool_name, arguments):
@@ -137,7 +134,7 @@ def call_buffer_mcp(tool_name, arguments):
     }
 
     # Initialize MCP session
-    init = requests.post(MCP_URL, headers=headers, json={
+    init_resp = requests.post(MCP_URL, headers=headers, json={
         "jsonrpc": "2.0", "id": 0, "method": "initialize",
         "params": {
             "protocolVersion": "2024-11-05",
@@ -145,11 +142,14 @@ def call_buffer_mcp(tool_name, arguments):
             "clientInfo": {"name": "stackin-bot", "version": "1.0"}
         }
     })
-    session_id = init.headers.get("Mcp-Session-Id")
+    print(f"MCP init status: {init_resp.status_code}")
+    print(f"MCP init body: {init_resp.text[:400]}")
+
+    session_id = init_resp.headers.get("Mcp-Session-Id")
     if session_id:
         headers["Mcp-Session-Id"] = session_id
 
-    # Send initialized notification
+    # Notify server that client is initialized
     requests.post(MCP_URL, headers=headers, json={
         "jsonrpc": "2.0", "method": "notifications/initialized"
     })
@@ -159,11 +159,14 @@ def call_buffer_mcp(tool_name, arguments):
         "jsonrpc": "2.0", "id": 1, "method": "tools/call",
         "params": {"name": tool_name, "arguments": arguments}
     })
+    print(f"MCP tool call status: {resp.status_code}")
+    print(f"MCP tool call body: {resp.text[:600]}")
 
     if not resp.ok:
         raise Exception(f"MCP call failed {resp.status_code}: {resp.text}")
 
-    if "text/event-stream" in resp.headers.get("content-type", ""):
+    content_type = resp.headers.get("content-type", "")
+    if "text/event-stream" in content_type:
         for line in resp.text.splitlines():
             if line.startswith("data: "):
                 data = json.loads(line[6:])
@@ -210,7 +213,7 @@ def main():
     image_url = build_cloudinary_url(heading, subheading)
     print(f"Image URL: {image_url}")
 
-    # Schedule for noon tomorrow EST (17:00 UTC)
+    # Schedule for noon EST tomorrow (17:00 UTC)
     tomorrow_noon = (datetime.now(timezone.utc) + timedelta(days=1)).replace(
         hour=17, minute=0, second=0, microsecond=0
     )
