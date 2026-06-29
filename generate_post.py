@@ -125,64 +125,74 @@ def build_cloudinary_url(heading, subheading):
     return url
 
 
-GRAPHQL_MUTATION = """
-mutation CreatePost($input: CreatePostInput!) {
-  createPost(input: $input) {
-    ... on PostActionSuccess {
-      post { id status }
+MCP_URL = "https://mcp.buffer.com/mcp"
+
+
+def call_buffer_mcp(tool_name, arguments):
+    token = os.environ["BUFFER_ACCESS_TOKEN"]
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
     }
-    ... on NotFoundError { message }
-    ... on UnauthorizedError { message }
-    ... on UnexpectedError { message }
-    ... on RestProxyError { message }
-    ... on LimitReachedError { message }
-    ... on InvalidInputError { message }
-  }
-}
-"""
+
+    # Initialize MCP session
+    init = requests.post(MCP_URL, headers=headers, json={
+        "jsonrpc": "2.0", "id": 0, "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {"name": "stackin-bot", "version": "1.0"}
+        }
+    })
+    session_id = init.headers.get("Mcp-Session-Id")
+    if session_id:
+        headers["Mcp-Session-Id"] = session_id
+
+    # Send initialized notification
+    requests.post(MCP_URL, headers=headers, json={
+        "jsonrpc": "2.0", "method": "notifications/initialized"
+    })
+
+    # Call the tool
+    resp = requests.post(MCP_URL, headers=headers, json={
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": tool_name, "arguments": arguments}
+    })
+
+    if not resp.ok:
+        raise Exception(f"MCP call failed {resp.status_code}: {resp.text}")
+
+    if "text/event-stream" in resp.headers.get("content-type", ""):
+        for line in resp.text.splitlines():
+            if line.startswith("data: "):
+                data = json.loads(line[6:])
+                if "result" in data:
+                    return data["result"]
+        raise Exception(f"No result in SSE stream: {resp.text}")
+
+    data = resp.json()
+    if "result" in data:
+        return data["result"]
+    raise Exception(f"Unexpected MCP response: {data}")
 
 
 def schedule_buffer_post(channel_id, text, scheduled_at, image_url=None, is_instagram=False):
-    token = os.environ["BUFFER_ACCESS_TOKEN"]
-
-    assets = []
-    if image_url:
-        assets = [{"image": {"url": image_url}}]
-
-    variables = {
-        "input": {
-            "channelId": channel_id,
-            "text": text,
-            "schedulingType": "automatic",
-            "mode": "customScheduled",
-            "dueAt": scheduled_at,
-            "assets": assets,
-        }
+    args = {
+        "channelId": channel_id,
+        "text": text,
+        "scheduledAt": scheduled_at,
+        "schedulingType": "automatic",
+        "mode": "customScheduled",
     }
-
+    if image_url:
+        args["assets"] = [{"image": {"url": image_url}}]
     if is_instagram:
-        variables["input"]["metadata"] = {
-            "instagram": {"type": "post", "shouldShareToFeed": True}
-        }
+        args["metadata"] = {"instagram": {"type": "post", "shouldShareToFeed": True}}
     else:
-        variables["input"]["metadata"] = {
-            "facebook": {"type": "post"}
-        }
+        args["metadata"] = {"facebook": {"type": "post"}}
 
-    response = requests.post(
-        "https://api.bufferapp.com/graphql",
-        json={"query": GRAPHQL_MUTATION, "variables": variables},
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    )
-    result = response.json()
-    if not response.ok:
-        raise Exception(f"Buffer API error: {result}")
-    if "errors" in result:
-        raise Exception(f"Buffer GraphQL error: {result['errors']}")
-    payload = result.get("data", {}).get("createPost", {})
-    if "message" in payload:
-        raise Exception(f"Buffer post error: {payload['message']}")
-    return payload
+    return call_buffer_mcp("create_post", args)
 
 
 def main():
