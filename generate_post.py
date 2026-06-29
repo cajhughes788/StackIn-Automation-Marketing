@@ -192,9 +192,8 @@ def schedule_buffer_post(channel_id, text, scheduled_at, image_url=None, is_inst
     args = {
         "channelId": channel_id,
         "text": text,
-        "dueAt": scheduled_at,
         "schedulingType": scheduling_type,
-        "mode": "customScheduled",
+        "mode": "shareNow",
     }
     if image_url:
         args["assets"] = [{"image": {"url": image_url}}]
@@ -221,19 +220,12 @@ def main():
     image_url = build_cloudinary_url(heading, subheading)
     print(f"Image URL: {image_url}")
 
-    # Schedule for noon EST tomorrow (17:00 UTC)
-    tomorrow_noon = (datetime.now(timezone.utc) + timedelta(days=1)).replace(
-        hour=17, minute=0, second=0, microsecond=0
-    )
-    scheduled_at = tomorrow_noon.strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(f"Scheduling for: {scheduled_at}")
+    print("Posting Instagram now...")
+    ig_result = schedule_buffer_post(INSTAGRAM_CHANNEL_ID, instagram_caption, None, image_url, is_instagram=True)
+    print(f"Instagram result: {ig_result}")
 
-    print("Scheduling Instagram post...")
-    ig_result = schedule_buffer_post(INSTAGRAM_CHANNEL_ID, instagram_caption, scheduled_at, image_url, is_instagram=True)
-    print(f"Instagram scheduled: {ig_result}")
-
-    print("Scheduling Facebook post...")
-    fb_result = schedule_buffer_post(FACEBOOK_CHANNEL_ID, facebook_post, scheduled_at, is_instagram=False)
+    print("Posting Facebook now...")
+    fb_result = schedule_buffer_post(FACEBOOK_CHANNEL_ID, facebook_post, None, is_instagram=False)
     print(f"Facebook scheduled: {fb_result}")
 
     print("\nDone! Both posts scheduled successfully.")
