@@ -119,7 +119,7 @@ def build_cloudinary_url(heading, subheading):
     heading_encoded = urllib.parse.quote(heading, safe='')
     subheading_encoded = urllib.parse.quote(subheading, safe='')
     return (
-        f"http://res.cloudinary.com/{CLOUDINARY_CLOUD}/image/upload/"
+        f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/image/upload/"
         f"c_fit,co_rgb:ffffff,g_north,l_text:Arial_58_bold:{heading_encoded},w_980,y_280/"
         f"c_fit,co_rgb:c8e6c9,g_north,l_text:Arial_44:{subheading_encoded},w_920,y_460/"
         f"stackin_template_blank.png"
