@@ -121,9 +121,16 @@ def generate_content():
     return json.loads(raw)
 
 
+def cloudinary_encode(text):
+    encoded = urllib.parse.quote(text, safe='')
+    # urllib doesn't encode these but Cloudinary requires it
+    encoded = encoded.replace('.', '%2E').replace(',', '%2C').replace('-', '%2D')
+    return encoded
+
+
 def build_cloudinary_url(heading, subheading):
-    heading_encoded = urllib.parse.quote(heading, safe='')
-    subheading_encoded = urllib.parse.quote(subheading, safe='')
+    heading_encoded = cloudinary_encode(heading)
+    subheading_encoded = cloudinary_encode(subheading)
     return (
         f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/image/upload/"
         f"c_fit,co_rgb:ffffff,g_north,l_text:Arial_58_bold:{heading_encoded},w_980,y_280/"
@@ -227,13 +234,17 @@ def main():
 
     print("Posting Instagram now...")
     ig_result = schedule_buffer_post(INSTAGRAM_CHANNEL_ID, instagram_caption, None, image_url, is_instagram=True)
-    print(f"Instagram result: {ig_result}")
+    if ig_result.get("isError"):
+        raise Exception(f"Instagram failed: {ig_result}")
+    print(f"Instagram queued successfully.")
 
     print("Posting Facebook now...")
     fb_result = schedule_buffer_post(FACEBOOK_CHANNEL_ID, facebook_post, None, is_instagram=False)
-    print(f"Facebook scheduled: {fb_result}")
+    if fb_result.get("isError"):
+        raise Exception(f"Facebook failed: {fb_result}")
+    print(f"Facebook posted successfully.")
 
-    print("\nDone! Both posts scheduled successfully.")
+    print("\nDone! Both posts completed successfully.")
 
 
 if __name__ == "__main__":
