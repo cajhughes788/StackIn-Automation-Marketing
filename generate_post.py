@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-print("=== VERSION: MCP BUILD 2c74615 ===")
+print("=== VERSION: CLOUDINARY SDK BUILD ===")
 import os
 import json
-import urllib.parse
 import requests
 import anthropic
+import cloudinary
+import cloudinary.utils
 from datetime import datetime, timedelta, timezone
 
 INSTAGRAM_CHANNEL_ID = "6a41579a5ab6d2f10680aa6f"
 FACEBOOK_CHANNEL_ID = "6a415d125ab6d2f10680bde1"
-CLOUDINARY_CLOUD = "dkqlevbi"
 MCP_URL = "https://mcp.buffer.com/mcp"
+
+cloudinary.config(cloud_name="dkqlevbi", api_key="452196185938819", api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""))
 
 PROMPT = """You are the marketing agent for StackIn, an income and expense tracking app built for two specific groups of people who are chronically underserved by existing financial tools.
 
@@ -121,22 +123,18 @@ def generate_content():
     return json.loads(raw)
 
 
-def cloudinary_encode(text):
-    encoded = urllib.parse.quote(text, safe='')
-    # urllib doesn't encode these but Cloudinary requires it
-    encoded = encoded.replace('.', '%2E').replace(',', '%2C').replace('-', '%2D')
-    return encoded
-
-
 def build_cloudinary_url(heading, subheading):
-    heading_encoded = cloudinary_encode(heading)
-    subheading_encoded = cloudinary_encode(subheading)
-    return (
-        f"https://res.cloudinary.com/{CLOUDINARY_CLOUD}/image/upload/"
-        f"c_fit,co_rgb:ffffff,g_north,l_text:Arial_58_bold:{heading_encoded},w_980,y_280/"
-        f"c_fit,co_rgb:c8e6c9,g_north,l_text:Arial_44:{subheading_encoded},w_920,y_460/"
-        f"stackin_template_blank.png"
+    url, _ = cloudinary.utils.cloudinary_url(
+        "stackin_template_blank",
+        transformation=[
+            {"overlay": {"font_family": "Arial", "font_size": 58, "font_weight": "bold", "text": heading},
+             "color": "#ffffff", "gravity": "north", "y": 280, "width": 980, "crop": "fit"},
+            {"overlay": {"font_family": "Arial", "font_size": 44, "text": subheading},
+             "color": "#c8e6c9", "gravity": "north", "y": 460, "width": 920, "crop": "fit"}
+        ],
+        format="png"
     )
+    return url
 
 
 def call_buffer_mcp(tool_name, arguments):
